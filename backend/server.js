@@ -70,23 +70,77 @@ app.put('/api/bins/:id', (req, res) => {
 });
 
 // Demo Data Management
+function getDemoData(city) {
+    const demoDatasets = {
+        delhi: {
+            center: { lat: 28.6139, lng: 77.2090 },
+            bins: [
+                { id: 1, lat: 28.615, lng: 77.210, status: 'active' },
+                { id: 2, lat: 28.620, lng: 77.200, status: 'active' },
+                { id: 3, lat: 28.610, lng: 77.220, status: 'active' },
+                { id: 4, lat: 28.625, lng: 77.215, status: 'maintenance' },
+                { id: 5, lat: 28.605, lng: 77.205, status: 'active' }
+            ]
+        },
+        mumbai: {
+            center: { lat: 19.0760, lng: 72.8777 },
+            bins: [
+                { id: 1, lat: 19.078, lng: 72.879, status: 'active' },
+                { id: 2, lat: 19.082, lng: 72.875, status: 'active' },
+                { id: 3, lat: 19.074, lng: 72.881, status: 'active' },
+                { id: 4, lat: 19.080, lng: 72.883, status: 'maintenance' },
+                { id: 5, lat: 19.072, lng: 72.873, status: 'active' }
+            ]
+        },
+        bangalore: {
+            center: { lat: 12.9716, lng: 77.5946 },
+            bins: [
+                { id: 1, lat: 12.973, lng: 77.596, status: 'active' },
+                { id: 2, lat: 12.978, lng: 77.592, status: 'active' },
+                { id: 3, lat: 12.969, lng: 77.598, status: 'active' },
+                { id: 4, lat: 12.975, lng: 77.600, status: 'maintenance' },
+                { id: 5, lat: 12.967, lng: 77.590, status: 'active' }
+            ]
+        },
+        chennai: {
+            center: { lat: 13.0827, lng: 80.2707 },
+            bins: [
+                { id: 1, lat: 13.084, lng: 80.272, status: 'active' },
+                { id: 2, lat: 13.089, lng: 80.268, status: 'active' },
+                { id: 3, lat: 13.081, lng: 80.274, status: 'active' },
+                { id: 4, lat: 13.087, lng: 80.276, status: 'maintenance' },
+                { id: 5, lat: 13.079, lng: 80.266, status: 'active' }
+            ]
+        },
+        kolkata: {
+            center: { lat: 22.5726, lng: 88.3639 },
+            bins: [
+                { id: 1, lat: 22.574, lng: 88.365, status: 'active' },
+                { id: 2, lat: 22.579, lng: 88.361, status: 'active' },
+                { id: 3, lat: 22.571, lng: 88.367, status: 'active' },
+                { id: 4, lat: 22.577, lng: 88.369, status: 'maintenance' },
+                { id: 5, lat: 22.569, lng: 88.359, status: 'active' }
+            ]
+        }
+    };
+
+    return demoDatasets[city] || demoDatasets.delhi;
+}
+
 app.post('/api/demo/initialize', (req, res) => {
+    const { city = 'delhi' } = req.body;
+    const demoData = getDemoData(city);
+
     // Initialize demo bins
-    bins = [
-        { id: 1, lat: 28.615, lng: 77.210, status: 'active' },
-        { id: 2, lat: 28.620, lng: 77.200, status: 'active' },
-        { id: 3, lat: 28.610, lng: 77.220, status: 'active' },
-        { id: 4, lat: 28.625, lng: 77.215, status: 'maintenance' },
-        { id: 5, lat: 28.605, lng: 77.205, status: 'active' }
-    ];
+    bins = demoData.bins;
 
-    // Initialize demo alerts
+    // Initialize demo alerts around the city center
     alerts = [
-        { id: Date.now(), lat: 28.6139 + (Math.random() - 0.5) * 0.02, lng: 77.2090 + (Math.random() - 0.5) * 0.02, type: 'waste', timestamp: new Date(), status: 'active' },
-        { id: Date.now() + 1, lat: 28.6139 + (Math.random() - 0.5) * 0.02, lng: 77.2090 + (Math.random() - 0.5) * 0.02, type: 'waste', timestamp: new Date(), status: 'active' }
+        { id: Date.now(), lat: demoData.center.lat + (Math.random() - 0.5) * 0.02, lng: demoData.center.lng + (Math.random() - 0.5) * 0.02, type: 'waste', timestamp: new Date(), status: 'active' },
+        { id: Date.now() + 1, lat: demoData.center.lat + (Math.random() - 0.5) * 0.02, lng: demoData.center.lng + (Math.random() - 0.5) * 0.02, type: 'waste', timestamp: new Date(), status: 'active' }
     ];
 
-    res.json({ success: true, bins: bins.length, alerts: alerts.length });
+    res.json({ success: true, bins: bins.length, alerts: alerts.length, city });
 });
 
 app.post('/api/demo/clear', (req, res) => {
