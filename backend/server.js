@@ -12,13 +12,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public'))); // Serve frontend from public folder
 
-// In-memory storage for demo (use database in production)
+// In-memory storage (use database in production)
 let alerts = [];
-let bins = [
-    { id: 1, lat: 28.615, lng: 77.210, status: 'active' },
-    { id: 2, lat: 28.620, lng: 77.200, status: 'active' },
-    { id: 3, lat: 28.610, lng: 77.220, status: 'active' }
-];
+let bins = [];
 
 // API Routes
 app.get('/api/alerts', (req, res) => {
@@ -71,6 +67,32 @@ app.put('/api/bins/:id', (req, res) => {
     } else {
         res.status(404).json({ error: 'Bin not found' });
     }
+});
+
+// Demo Data Management
+app.post('/api/demo/initialize', (req, res) => {
+    // Initialize demo bins
+    bins = [
+        { id: 1, lat: 28.615, lng: 77.210, status: 'active' },
+        { id: 2, lat: 28.620, lng: 77.200, status: 'active' },
+        { id: 3, lat: 28.610, lng: 77.220, status: 'active' },
+        { id: 4, lat: 28.625, lng: 77.215, status: 'maintenance' },
+        { id: 5, lat: 28.605, lng: 77.205, status: 'active' }
+    ];
+
+    // Initialize demo alerts
+    alerts = [
+        { id: Date.now(), lat: 28.6139 + (Math.random() - 0.5) * 0.02, lng: 77.2090 + (Math.random() - 0.5) * 0.02, type: 'waste', timestamp: new Date(), status: 'active' },
+        { id: Date.now() + 1, lat: 28.6139 + (Math.random() - 0.5) * 0.02, lng: 77.2090 + (Math.random() - 0.5) * 0.02, type: 'waste', timestamp: new Date(), status: 'active' }
+    ];
+
+    res.json({ success: true, bins: bins.length, alerts: alerts.length });
+});
+
+app.post('/api/demo/clear', (req, res) => {
+    bins = [];
+    alerts = [];
+    res.json({ success: true });
 });
 
 // Proxy for Gemini API

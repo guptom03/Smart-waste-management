@@ -7,6 +7,7 @@ A production-ready web application for monitoring and managing urban waste colle
 - **Real-time Dashboard**: Interactive map showing waste bins and alerts
 - **AI Analysis**: AI-powered waste analysis and cleanup strategies
 - **Control Panel**: Administrative interface for managing bins and alerts
+- **Demo Data Management**: Initialize demo data or add real bins manually
 - **RESTful API**: Backend API for bins, alerts, and AI services
 
 ## Tech Stack
@@ -38,6 +39,14 @@ A production-ready web application for monitoring and managing urban waste colle
    ```
 6. Open your browser to `http://localhost:3000`
 
+## Demo Data Management
+
+The system starts with no data. Use the Control Panel (`/control`) to:
+
+- **Initialize Demo Data**: Click "🚀 Initialize Demo Data" to add sample bins and alerts
+- **Add Real Bins**: Enter latitude/longitude coordinates manually
+- **Clear Data**: Remove all bins and alerts when needed
+
 ## API Endpoints
 
 - `GET /api/bins` - Get all waste bins
@@ -46,6 +55,8 @@ A production-ready web application for monitoring and managing urban waste colle
 - `GET /api/alerts` - Get all alerts
 - `POST /api/alerts` - Create a new alert
 - `DELETE /api/alerts/:id` - Resolve an alert
+- `POST /api/demo/initialize` - Initialize demo data
+- `POST /api/demo/clear` - Clear all data
 - `POST /api/gemini` - AI analysis proxy
 
 ## Production Deployment

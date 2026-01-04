@@ -62,6 +62,38 @@
                 <p class="text-2xl font-bold text-green-500">ONLINE</p>
             </div>
         </div>
+
+        <!-- Demo Data Panel -->
+        <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
+            <h3 class="text-lg font-bold mb-4 text-purple-400">Demo Data Management</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-3">
+                    <h4 class="text-sm font-semibold text-gray-300">Quick Demo Setup</h4>
+                    <button onclick="initializeDemoData()" class="w-full py-3 bg-purple-600 hover:bg-purple-700 rounded font-bold text-sm transition">
+                        🚀 Initialize Demo Data
+                    </button>
+                    <p class="text-xs text-gray-400">Adds 5 sample bins and 2 alerts for presentation</p>
+                </div>
+                <div class="space-y-3">
+                    <h4 class="text-sm font-semibold text-gray-300">Manual Data Entry</h4>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="number" id="bin-lat" step="0.0001" placeholder="Latitude" class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+                        <input type="number" id="bin-lng" step="0.0001" placeholder="Longitude" class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+                    </div>
+                    <button onclick="addManualBin()" class="w-full py-2 bg-blue-600 hover:bg-blue-700 rounded font-bold text-sm transition">
+                        ➕ Add Bin
+                    </button>
+                    <p class="text-xs text-gray-400">Add individual bins with coordinates</p>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-gray-700">
+                <button onclick="clearAllData()" class="w-full py-2 bg-red-600 hover:bg-red-700 rounded font-bold text-sm transition">
+                    🗑️ Clear All Data
+                </button>
+                <p class="text-xs text-gray-400 mt-1">Removes all bins and alerts</p>
+            </div>
+        </div>
+
     </main>
 
     <script>
@@ -311,6 +343,72 @@
                 } catch (error) {
                     console.error('Error clearing alerts:', error);
                 }
+            }
+        }
+
+        async function initializeDemoData() {
+            try {
+                const response = await fetch('/api/demo/initialize', { method: 'POST' });
+                const result = await response.json();
+                if (result.success) {
+                    alert(`Demo data initialized!\n${result.bins} bins and ${result.alerts} alerts added.`);
+                    await loadData();
+                }
+            } catch (error) {
+                console.error('Error initializing demo data:', error);
+                alert('Failed to initialize demo data');
+            }
+        }
+
+        async function addManualBin() {
+            const lat = parseFloat(document.getElementById('bin-lat').value);
+            const lng = parseFloat(document.getElementById('bin-lng').value);
+
+            if (!lat || !lng || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                alert('Please enter valid latitude (-90 to 90) and longitude (-180 to 180)');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/bins', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lat, lng })
+                });
+                const newBin = await response.json();
+                bins.push(newBin);
+                updateBinsList();
+                updateStats();
+                updateMap();
+                document.getElementById('bin-lat').value = '';
+                document.getElementById('bin-lng').value = '';
+                alert('Bin added successfully!');
+            } catch (error) {
+                console.error('Error adding bin:', error);
+                alert('Failed to add bin');
+            }
+        }
+
+        async function clearAllData() {
+            if (!confirm('Are you sure you want to clear ALL bins and alerts? This action cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/demo/clear', { method: 'POST' });
+                const result = await response.json();
+                if (result.success) {
+                    bins = [];
+                    alerts = [];
+                    updateBinsList();
+                    updateAlertsList();
+                    updateStats();
+                    updateMap();
+                    alert('All data cleared successfully!');
+                }
+            } catch (error) {
+                console.error('Error clearing data:', error);
+                alert('Failed to clear data');
             }
         }
     </script>
