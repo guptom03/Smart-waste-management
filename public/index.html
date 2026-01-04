@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Waste Management System - Admin Dashboard</title>
+    <!-- Tailwind CSS for UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Maps API -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{GOOGLE_MAPS_API_KEY}}&callback=initMap"></script>
+    <style>
+        #map { height: 500px; width: 100%; border-radius: 12px; }
+        
+        /* Red Zone Pulsing Animation */
+        .red-zone-marker {
+            background: rgba(255, 0, 0, 0.6);
+            border-radius: 50%;
+            box-shadow: 0 0 0 rgba(255, 0, 0, 0.4);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+            70% { transform: scale(1.2); box-shadow: 0 0 0 15px rgba(255, 0, 0, 0); }
+            100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+        }
+
+        /* 3D View Modal Styling */
+        .modal-3d {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            background: #111;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            width: 80%;
+            max-width: 650px;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 999;
+        }
+
+        .waste-3d-box {
+            width: 150px;
+            height: 150px;
+            margin: 30px auto;
+            transform-style: preserve-3d;
+            animation: rotate3D 8s linear infinite;
+        }
+
+        @keyframes rotate3D {
+            from { transform: rotateY(0deg) rotateX(45deg); }
+            to { transform: rotateY(360deg) rotateX(45deg); }
+        }
+
+        .cube-face {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            border: 2px solid #ff4d4d;
+            background: rgba(255, 77, 77, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 10px;
+            text-align: center;
+        }
+
+        /* Loading Spinner */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #ef4444;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white font-sans">
+
+    <!-- Header -->
+    <header class="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-950">
+        <div>
+            <h1 class="text-2xl font-bold text-red-500 tracking-tight">SMART WASTE SYSTEM</h1>
+            <p class="text-gray-400 text-sm">Real-time City Surveillance & AI Insights</p>
+        </div>
+        <div class="flex gap-4">
+            <a href="/control" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm font-bold">CONTROL PANEL</a>
+            <div id="status-light" class="flex items-center gap-2 px-4 py-2 bg-green-900/30 text-green-400 rounded-full border border-green-800">
+                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                SYSTEM ACTIVE
+            </div>
+        </div>
+    </header>
+
+    <main class="p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
+        
+        <!-- Left Panel: Stats & AI Action -->
+        <div class="lg:col-span-1 space-y-4">
+            <div class="bg-gray-800 p-5 rounded-xl border border-gray-700">
+                <h3 class="text-gray-400 text-xs font-bold uppercase mb-1">Total Alerts Today</h3>
+                <p id="alert-count" class="text-4xl font-mono text-red-500 font-bold">0</p>
+            </div>
+            
+            <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 flex flex-col gap-3">
+                <h3 class="text-blue-400 text-xs font-bold uppercase">AI Control Unit</h3>
+                <button onclick="simulateWaste()" class="w-full py-3 bg-red-600 hover:bg-red-700 transition font-bold rounded-lg text-sm shadow-lg shadow-red-900/20">
+                    SIMULATE WASTE DETECTION
+                </button>
+                <button onclick="getAIStrategy()" class="w-full py-3 bg-blue-600 hover:bg-blue-700 transition font-bold rounded-lg text-sm border border-blue-400">
+                    ✨ GENERATE SMART CLEANUP PLAN
+                </button>
+            </div>
+
+            <!-- AI Strategy Output Box -->
+            <div id="ai-strategy-box" class="hidden bg-blue-900/20 p-4 rounded-xl border border-blue-800">
+                <h4 class="text-blue-400 text-xs font-bold mb-2">✨ GEMINI CLEANUP STRATEGY</h4>
+                <div id="ai-strategy-content" class="text-xs leading-relaxed text-gray-300">
+                    Analyzing city map for optimal route...
+                </div>
+            </div>
+
+            <div class="bg-gray-800 p-5 rounded-xl border border-gray-700">
+                <h3 class="text-gray-400 text-xs font-bold uppercase mb-4">Recent Incident Logs</h3>
+                <div id="logs" class="space-y-3 max-h-48 overflow-y-auto pr-2">
+                    <p class="text-xs text-gray-500 italic">No incidents recorded...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Map Area -->
+        <div class="lg:col-span-3">
+            <div id="map"></div>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 bg-gray-850 border border-gray-800 rounded-xl flex items-center gap-3">
+                    <span class="w-4 h-4 bg-blue-500 rounded-full"></span>
+                    <span class="text-sm">Active Dustbins</span>
+                </div>
+                <div class="p-4 bg-gray-850 border border-gray-800 rounded-xl flex items-center gap-3">
+                    <span class="w-4 h-4 bg-red-500 rounded-full animate-pulse"></span>
+                    <span class="text-sm">Red Zones (Alerts)</span>
+                </div>
+                <div class="p-4 bg-gray-850 border border-gray-800 rounded-xl flex items-center gap-3">
+                    <div class="loader mr-2"></div>
+                    <span class="text-sm italic text-gray-400">AI Background Scanning...</span>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 3D Visualization & AI Analysis Modal -->
+    <div id="overlay" class="overlay" onclick="closeModal()"></div>
+    <div id="modal3d" class="modal-3d">
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h2 class="text-xl font-bold text-red-400 uppercase tracking-widest">Live 3D Recon</h2>
+                <p id="modal-location" class="text-[10px] text-gray-500"></p>
+            </div>
+            <button onclick="closeModal()" class="text-gray-500 hover:text-white">✕</button>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Left Side: 3D Visual -->
+            <div class="bg-black/50 rounded-xl p-4 border border-gray-800">
+                <div class="waste-3d-box" id="box3d">
+                    <div class="cube-face" style="transform: rotateY(0deg) translateZ(75px);">FRONT</div>
+                    <div class="cube-face" style="transform: rotateY(90deg) translateZ(75px);">SIDE</div>
+                    <div class="cube-face" style="transform: rotateY(180deg) translateZ(75px);">REAR</div>
+                    <div class="cube-face" style="transform: rotateY(-90deg) translateZ(75px);">SIDE</div>
+                    <div class="cube-face" style="transform: rotateX(90deg) translateZ(75px);">TOP</div>
+                    <div class="cube-face" style="transform: rotateX(-90deg) translateZ(75px);">BOTTOM</div>
+                </div>
+                <div class="mt-4 text-[10px] text-center text-red-500 font-mono animate-pulse">
+                    ANALYZING SCAN DATA...
+                </div>
+            </div>
+
+            <!-- Right Side: AI Insight -->
+            <div class="bg-gray-900 p-4 rounded-xl border border-gray-800 flex flex-col">
+                <h4 class="text-blue-400 text-xs font-bold mb-3 flex items-center gap-2">
+                    ✨ GEMINI AI ANALYSIS
+                </h4>
+                <div id="ai-analysis-content" class="text-xs text-gray-300 flex-grow italic leading-relaxed">
+                    Connecting to LLM for site assessment...
+                </div>
+                <div class="mt-4 pt-3 border-t border-gray-800 flex gap-2">
+                    <span class="bg-gray-800 px-2 py-1 rounded text-[9px]">Priority: High</span>
+                    <span class="bg-gray-800 px-2 py-1 rounded text-[9px]">Type: Public Area</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="sirenSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
+
+    <!-- Scripts -->
+    <script>
+        let map;
+        let alertCount = 0;
+        let markers = [];
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 28.6139, lng: 77.2090 },
+                zoom: 14,
+                styles: [
+                    { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
+                    { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
+                    { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
+                    {
+                        featureType: 'administrative.locality',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#d59563' }]
+                    },
+                    {
+                        featureType: 'poi',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#d59563' }]
+                    },
+                    {
+                        featureType: 'poi.park',
+                        elementType: 'geometry',
+                        stylers: [{ color: '#263c3f' }]
+                    },
+                    {
+                        featureType: 'poi.park',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#6b9a76' }]
+                    },
+                    {
+                        featureType: 'road',
+                        elementType: 'geometry',
+                        stylers: [{ color: '#38414e' }]
+                    },
+                    {
+                        featureType: 'road',
+                        elementType: 'geometry.stroke',
+                        stylers: [{ color: '#212a37' }]
+                    },
+                    {
+                        featureType: 'road',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#9ca5b3' }]
+                    },
+                    {
+                        featureType: 'road.highway',
+                        elementType: 'geometry',
+                        stylers: [{ color: '#746855' }]
+                    },
+                    {
+                        featureType: 'road.highway',
+                        elementType: 'geometry.stroke',
+                        stylers: [{ color: '#1f2835' }]
+                    },
+                    {
+                        featureType: 'road.highway',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#f3d19c' }]
+                    },
+                    {
+                        featureType: 'transit',
+                        elementType: 'geometry',
+                        stylers: [{ color: '#2f3948' }]
+                    },
+                    {
+                        featureType: 'transit.station',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#d59563' }]
+                    },
+                    {
+                        featureType: 'water',
+                        elementType: 'geometry',
+                        stylers: [{ color: '#17263c' }]
+                    },
+                    {
+                        featureType: 'water',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#515c6d' }]
+                    },
+                    {
+                        featureType: 'water',
+                        elementType: 'labels.text.stroke',
+                        stylers: [{ color: '#17263c' }]
+                    }
+                ]
+            });
+
+            loadData();
+        }
+
+        async function loadData() {
+            // Load bins from API
+            try {
+                const binsResponse = await fetch('/api/bins');
+                const bins = await binsResponse.json();
+                bins.forEach(bin => {
+                    addBinMarker(bin);
+                });
+            } catch (error) {
+                console.error('Error loading bins:', error);
+            }
+
+            // Load existing alerts
+            try {
+                const alertsResponse = await fetch('/api/alerts');
+                const alerts = await alertsResponse.json();
+                alerts.forEach(alert => {
+                    addAlertMarker(alert);
+                });
+                document.getElementById('alert-count').innerText = alerts.length;
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+            }
+        }
+
+        function addBinMarker(bin) {
+            const color = bin.status === 'active' ? '#3b82f6' : bin.status === 'maintenance' ? '#f59e0b' : '#ef4444';
+            const circle = new google.maps.Circle({
+                strokeColor: color,
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                fillColor: color,
+                fillOpacity: 0.1,
+                map,
+                center: { lat: bin.lat, lng: bin.lng },
+                radius: 800,
+            });
+            markers.push(circle);
+        }
+
+        function addAlertMarker(alert) {
+            const marker = new google.maps.Marker({
+                position: { lat: alert.lat, lng: alert.lng },
+                map,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 10,
+                    fillColor: '#ef4444',
+                    fillOpacity: 0.6,
+                    strokeColor: '#ef4444',
+                    strokeWeight: 2,
+                },
+                title: 'Waste Alert',
+            });
+
+            const infoWindow = new google.maps.InfoWindow({
+                content: `
+                    <div style="color: black; padding: 8px;">
+                        <h3 style="font-weight: bold; color: #dc2626;">!! ALERT !!</h3>
+                        <p style="font-size: 10px;">Location: ${alert.lat.toFixed(3)}, ${alert.lng.toFixed(3)}</p>
+                        <button onclick="open3D(${alert.lat}, ${alert.lng})" style="margin-top: 8px; width: 100%; background: #2563eb; color: white; padding: 6px 12px; font-size: 10px; border: none; border-radius: 4px; cursor: pointer;">✨ ANALYZE SITE (AI)</button>
+                        <button onclick="resolveAlert(${alert.id})" style="margin-top: 8px; width: 100%; background: #16a34a; color: white; padding: 6px 12px; font-size: 10px; border: none; border-radius: 4px; cursor: pointer;">RESOLVE</button>
+                    </div>
+                `,
+            });
+
+            marker.addListener('click', () => {
+                infoWindow.open(map, marker);
+            });
+
+            markers.push(marker);
+        }
+
+        // GEMINI API CALL: Exponential Backoff Wrapper
+        async function callGemini(prompt) {
+            const payload = { prompt };
+
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const response = await fetch('/api/gemini', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response from AI.";
+                } catch (err) {
+                    const delay = Math.pow(2, i) * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+            return "AI Analysis failed after multiple retries.";
+        }
+
+        async function simulateWaste() {
+            const lat = 28.6139 + (Math.random() - 0.5) * 0.02;
+            const lng = 77.2090 + (Math.random() - 0.5) * 0.02;
+
+            try {
+                const response = await fetch('/api/alerts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lat, lng })
+                });
+                const alert = await response.json();
+                addAlertMarker(alert);
+                alertCount++;
+                document.getElementById('alert-count').innerText = alertCount;
+                updateLogs(alert);
+                map.panTo({ lat, lng });
+                document.getElementById('sirenSound').play().catch(() => {});
+            } catch (error) {
+                console.error('Error creating alert:', error);
+            }
+        }
+
+        function updateLogs(alert) {
+            const logBox = document.getElementById('logs');
+            if(alertCount === 1) logBox.innerHTML = '';
+            
+            const entry = document.createElement('div');
+            entry.className = "p-2 bg-red-900/20 border-l-4 border-red-500 rounded text-[10px]";
+            entry.innerHTML = `<span class="text-red-400 font-bold">DETECTED</span> Area Sector-${Math.floor(Math.random()*10)} <br> <span class="text-gray-500">${new Date(alert.timestamp).toLocaleTimeString()}</span>`;
+            logBox.prepend(entry);
+        }
+
+        async function resolveAlert(id) {
+            try {
+                await fetch(`/api/alerts/${id}`, { method: 'DELETE' });
+                // Clear markers and reload
+                markers.forEach(marker => marker.setMap(null));
+                markers = [];
+                loadData();
+            } catch (error) {
+                console.error('Error resolving alert:', error);
+            }
+        }
+
+        async function open3D(lat, lng) {
+            document.getElementById('modal3d').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+            document.getElementById('modal-location').innerText = `COORDINATES: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            document.getElementById('ai-analysis-content').innerHTML = '<div class="loader"></div> Analyzing site composition...';
+
+            // AI Insight Prompt
+            const prompt = `Assume you are a smart waste management AI. I have detected waste thrown outside a bin at coordinates ${lat}, ${lng}. Give me a 3-sentence professional analysis in Hindi (Latin) about: 1. Likely waste type (plastic/organic) based on typical city data. 2. Potential health risk. 3. Recommendation for the cleanup crew. Keep it concise.`;
+            
+            const result = await callGemini(prompt);
+            document.getElementById('ai-analysis-content').innerText = result;
+        }
+
+        async function getAIStrategy() {
+            try {
+                const alertsResponse = await fetch('/api/alerts');
+                const incidentLocations = await alertsResponse.json();
+
+                if (incidentLocations.length === 0) {
+                    alert("Pahle kuch alert simulate kariye!");
+                    return;
+                }
+
+                const strategyBox = document.getElementById('ai-strategy-box');
+                const content = document.getElementById('ai-strategy-content');
+                
+                strategyBox.classList.remove('hidden');
+                content.innerHTML = '<div class="loader"></div> Calculating optimal cleanup route...';
+
+                const prompt = `I have ${incidentLocations.length} active waste dumping sites in the city. Create a short, bulleted cleanup strategy in Hindi (Latin). Mention route priority (which one to pick first) and one tip for long-term prevention in that area. Limit to 100 words.`;
+                
+                const result = await callGemini(prompt);
+                content.innerText = result;
+            } catch (error) {
+                console.error('Error getting AI strategy:', error);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal3d').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

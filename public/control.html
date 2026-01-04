@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Dashboard - Smart Waste Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Maps API -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{GOOGLE_MAPS_API_KEY}}&callback=initMap"></script>
+    <style>
+        #map { height: 400px; width: 100%; border-radius: 12px; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white font-sans">
+    <header class="p-6 border-b border-gray-800 bg-gray-950">
+        <div class="flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-blue-500">CONTROL DASHBOARD</h1>
+            <a href="/" class="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600">Back to Main</a>
+        </div>
+    </header>
+
+    <main class="p-6 space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Bins Management -->
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                <h3 class="text-lg font-bold mb-4 text-blue-400">Dustbin Management</h3>
+                <div id="bins-list" class="space-y-2 mb-4 max-h-48 overflow-y-auto">
+                    <!-- Bins will be loaded here -->
+                </div>
+                <button onclick="addBin()" class="w-full py-2 bg-blue-600 hover:bg-blue-700 rounded">Add New Bin</button>
+            </div>
+
+            <!-- Alerts Management -->
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                <h3 class="text-lg font-bold mb-4 text-red-400">Active Alerts</h3>
+                <div id="alerts-list" class="space-y-2 mb-4 max-h-48 overflow-y-auto">
+                    <!-- Alerts will be loaded here -->
+                </div>
+                <button onclick="clearAllAlerts()" class="w-full py-2 bg-red-600 hover:bg-red-700 rounded">Clear All Alerts</button>
+            </div>
+        </div>
+
+        <!-- Map for Adding Bins -->
+        <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
+            <h3 class="text-lg font-bold mb-4 text-green-400">Add Bin Location</h3>
+            <p class="text-sm text-gray-400 mb-4">Click on the map to add a new dustbin location.</p>
+            <div id="map"></div>
+        </div>
+
+        <!-- System Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 text-center">
+                <h4 class="text-gray-400 text-sm">Total Bins</h4>
+                <p id="total-bins" class="text-2xl font-bold text-blue-500">0</p>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 text-center">
+                <h4 class="text-gray-400 text-sm">Active Alerts</h4>
+                <p id="total-alerts" class="text-2xl font-bold text-red-500">0</p>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 text-center">
+                <h4 class="text-gray-400 text-sm">System Status</h4>
+                <p class="text-2xl font-bold text-green-500">ONLINE</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let map;
+        let bins = [];
+        let alerts = [];
+        let markers = [];
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 28.6139, lng: 77.2090 },
+                zoom: 14,
+                styles: [
+                    { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
+                    { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
+                    { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
+                    {
+                        featureType: 'administrative.locality',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#d59563' }]
+                    },
+                    {
+                        featureType: 'poi',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#d59563' }]
+                    },
+                    {
+                        featureType: 'poi.park',
+                        elementType: 'geometry',
+                        stylers: [{ color: '#263c3f' }]
+                    },
+                    {
+                        featureType: 'poi.park',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#6b9a76' }]
+                    },
+                    {
+                        featureType: 'road',
+                        elementType: 'geometry',
+                        stylers: [{ color: '#38414e' }]
+                    },
+                    {
+                        featureType: 'road',
+                        elementType: 'geometry.stroke',
+                        stylers: [{ color: '#212a37' }]
+                    },
+                    {
+                        featureType: 'road',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#9ca5b3' }]
+                    },
+                    {
+                        featureType: 'road.highway',
+                        elementType: 'geometry',
+                        stylers: [{ color: '#746855' }]
+                    },
+                    {
+                        featureType: 'road.highway',
+                        elementType: 'geometry.stroke',
+                        stylers: [{ color: '#1f2835' }]
+                    },
+                    {
+                        featureType: 'road.highway',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#f3d19c' }]
+                    },
+                    {
+                        featureType: 'transit',
+                        elementType: 'geometry',
+                        stylers: [{ color: '#2f3948' }]
+                    },
+                    {
+                        featureType: 'transit.station',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#d59563' }]
+                    },
+                    {
+                        featureType: 'water',
+                        elementType: 'geometry',
+                        stylers: [{ color: '#17263c' }]
+                    },
+                    {
+                        featureType: 'water',
+                        elementType: 'labels.text.fill',
+                        stylers: [{ color: '#515c6d' }]
+                    },
+                    {
+                        featureType: 'water',
+                        elementType: 'labels.text.stroke',
+                        stylers: [{ color: '#17263c' }]
+                    }
+                ]
+            });
+
+            map.addListener('click', function(e) {
+                addBinAtLocation(e.latLng.lat(), e.latLng.lng());
+            });
+
+            loadData();
+        }
+
+        async function loadData() {
+            try {
+                const [binsRes, alertsRes] = await Promise.all([
+                    fetch('/api/bins'),
+                    fetch('/api/alerts')
+                ]);
+                bins = await binsRes.json();
+                alerts = await alertsRes.json();
+
+                updateBinsList();
+                updateAlertsList();
+                updateStats();
+                updateMap();
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+
+        function updateBinsList() {
+            const list = document.getElementById('bins-list');
+            list.innerHTML = bins.map(bin => `
+                <div class="flex justify-between items-center p-2 bg-gray-700 rounded">
+                    <span>Bin ${bin.id} (${bin.lat.toFixed(3)}, ${bin.lng.toFixed(3)})</span>
+                    <select onchange="updateBinStatus(${bin.id}, this.value)" class="bg-gray-600 text-xs rounded px-2 py-1">
+                        <option value="active" ${bin.status === 'active' ? 'selected' : ''}>Active</option>
+                        <option value="maintenance" ${bin.status === 'maintenance' ? 'selected' : ''}>Maintenance</option>
+                        <option value="inactive" ${bin.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+                    </select>
+                </div>
+            `).join('');
+        }
+
+        function updateAlertsList() {
+            const list = document.getElementById('alerts-list');
+            list.innerHTML = alerts.map(alert => `
+                <div class="flex justify-between items-center p-2 bg-red-900/20 border-l-4 border-red-500 rounded">
+                    <span>Alert ${alert.id} (${alert.lat.toFixed(3)}, ${alert.lng.toFixed(3)})</span>
+                    <button onclick="resolveAlert(${alert.id})" class="bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-xs">Resolve</button>
+                </div>
+            `).join('');
+        }
+
+        function updateStats() {
+            document.getElementById('total-bins').innerText = bins.length;
+            document.getElementById('total-alerts').innerText = alerts.length;
+        }
+
+        function updateMap() {
+            // Clear existing markers
+            markers.forEach(marker => marker.setMap(null));
+            markers = [];
+
+            // Add bins
+            bins.forEach(bin => {
+                const color = bin.status === 'active' ? '#3b82f6' : bin.status === 'maintenance' ? '#f59e0b' : '#ef4444';
+                const circle = new google.maps.Circle({
+                    strokeColor: color,
+                    strokeOpacity: 0.8,
+                    strokeWeight: 2,
+                    fillColor: color,
+                    fillOpacity: 0.1,
+                    map,
+                    center: { lat: bin.lat, lng: bin.lng },
+                    radius: 800,
+                });
+                markers.push(circle);
+            });
+
+            // Add alerts
+            alerts.forEach(alert => {
+                const marker = new google.maps.Marker({
+                    position: { lat: alert.lat, lng: alert.lng },
+                    map,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: '#ef4444',
+                        fillOpacity: 0.6,
+                        strokeColor: '#ef4444',
+                        strokeWeight: 2,
+                    },
+                    title: 'Waste Alert',
+                });
+                markers.push(marker);
+            });
+        }
+
+        async function addBin() {
+            const lat = 28.6139 + (Math.random() - 0.5) * 0.02;
+            const lng = 77.2090 + (Math.random() - 0.5) * 0.02;
+            await addBinAtLocation(lat, lng);
+        }
+
+        async function addBinAtLocation(lat, lng) {
+            try {
+                const response = await fetch('/api/bins', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lat, lng })
+                });
+                const newBin = await response.json();
+                bins.push(newBin);
+                updateBinsList();
+                updateStats();
+                updateMap();
+            } catch (error) {
+                console.error('Error adding bin:', error);
+            }
+        }
+
+        async function updateBinStatus(id, status) {
+            try {
+                await fetch(`/api/bins/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status })
+                });
+                const bin = bins.find(b => b.id === id);
+                if (bin) bin.status = status;
+                updateMap();
+            } catch (error) {
+                console.error('Error updating bin:', error);
+            }
+        }
+
+        async function resolveAlert(id) {
+            try {
+                await fetch(`/api/alerts/${id}`, { method: 'DELETE' });
+                alerts = alerts.filter(a => a.id !== id);
+                updateAlertsList();
+                updateStats();
+                updateMap();
+            } catch (error) {
+                console.error('Error resolving alert:', error);
+            }
+        }
+
+        async function clearAllAlerts() {
+            if (confirm('Are you sure you want to clear all alerts?')) {
+                try {
+                    await Promise.all(alerts.map(alert => fetch(`/api/alerts/${alert.id}`, { method: 'DELETE' })));
+                    alerts = [];
+                    updateAlertsList();
+                    updateStats();
+                    updateMap();
+                } catch (error) {
+                    console.error('Error clearing alerts:', error);
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .red-zone-marker {
+            background: rgba(255, 0, 0, 0.6);
+            border-radius: 50%;
+            box-shadow: 0 0 0 rgba(255, 0, 0, 0.4);
+        }
+    </style>
+</body>
+</html>
